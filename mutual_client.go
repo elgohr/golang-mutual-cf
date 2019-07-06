@@ -3,41 +3,49 @@ package mutual
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"os"
 )
 
-func GetMutualClient() (*http.Client, error) {
-	caPath := os.Getenv("CF_SYSTEM_CERT_PATH")
-	certPath := os.Getenv("CF_INSTANCE_CERT")
-	keyPath := os.Getenv("CF_INSTANCE_KEY")
+const (
+	certLocation = "CF_INSTANCE_CERT"
+	keyLocation  = "CF_INSTANCE_KEY"
+	caLocation   = "CF_SYSTEM_CERT_PATH"
+)
 
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+func GetClient() (client *http.Client, err error) {
+	client = http.DefaultClient
+	config, err := addCertificateConfig()
 	if err != nil {
-		return nil, err
+		return client, err
 	}
+	client.Transport = &http.Transport{
+		TLSClientConfig: config,
+	}
+	return client, nil
+}
 
-	caCert, err := ioutil.ReadFile(caPath)
+func addCertificateConfig() (config *tls.Config, err error) {
+	cert, err := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Could not load Key-Pair")
+	}
+	caCert, err := ioutil.ReadFile(os.Getenv(caLocation))
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not load CA-Cert")
 	}
 	pcaCert, err := x509.ParseCertificate(caCert)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "CA-Certificate is invalid")
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(pcaCert)
-
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      caCertPool,
 	}
 	tlsConfig.BuildNameToCertificate()
-
-	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
-	}, nil
+	return tlsConfig, nil
 }

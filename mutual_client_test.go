@@ -2,15 +2,171 @@ package mutual_test
 
 import (
 	"github.com/elgohr/golang-mutual-cf"
-	"golang.org/x/crypto/md4"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestAddsMutualAuthenticationToRequest(t *testing.T) {
+	ts := setup(t)
+	defer ts.Close()
+
+	client, err := mutual.GetClient()
+	if err != nil {
+		t.Error(err)
+	}
+
+	res, err := client.Get(ts.URL)
+	defer res.Body.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Responded with %v", res.StatusCode)
+	}
+
+	clean(t)
+}
+
+func TestErrorsWhenAuthorityCouldNotBeFound(t *testing.T) {
+	ts := setup(t)
+	defer ts.Close()
+
+	err := os.Unsetenv("CF_SYSTEM_CERT_PATH")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = mutual.GetClient()
+	if err == nil || !strings.HasPrefix(err.Error(), "Could not load CA-Cert:") {
+		t.Error(err)
+	}
+
+	clean(t)
+}
+
+func TestErrorsWhenKeyCouldNotBeFound(t *testing.T) {
+	ts := setup(t)
+	defer ts.Close()
+
+	err := os.Unsetenv("CF_INSTANCE_KEY")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = mutual.GetClient()
+	if err == nil || !strings.HasPrefix(err.Error(), "Could not load Key-Pair:") {
+		t.Error(err)
+	}
+
+	clean(t)
+}
+
+func TestErrorsWhenCertificateCouldNotBeFound(t *testing.T) {
+	ts := setup(t)
+	defer ts.Close()
+
+	err := os.Unsetenv("CF_INSTANCE_CERT")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = mutual.GetClient()
+	if err == nil || !strings.HasPrefix(err.Error(), "Could not load Key-Pair:") {
+		t.Error(err)
+	}
+
+	clean(t)
+}
+
+func TestErrorsWhenAuthorityIsInvalid(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	caCert := ts.TLS.Certificates[0].Certificate[0]
+
+	tmpDir, err := ioutil.TempDir("", "golang-mutual")
+	if err != nil {
+		t.Error(err)
+	}
+	if err := configureCfEnvironment(tmpDir, caCert); err != nil {
+		t.Error(err)
+	}
+
+	err = prepareCertificate(tmpDir, "CF_SYSTEM_CERT_PATH", "ca.crt", []byte("BROKEN"))
+	if err != nil {
+		return
+	}
+
+	_, err = mutual.GetClient()
+	if err == nil || !strings.HasPrefix(err.Error(), "CA-Certificate is invalid:") {
+		t.Error(err)
+	}
+
+	clean(t)
+}
+
+func setup(t *testing.T) *httptest.Server {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	caCert := ts.TLS.Certificates[0].Certificate[0]
+
+	tmpDir, err := ioutil.TempDir("", "golang-mutual")
+	if err != nil {
+		t.Error(err)
+	}
+	if err := configureCfEnvironment(tmpDir, caCert); err != nil {
+		t.Error(err)
+	}
+	return ts
+}
+
+func configureCfEnvironment(tmpDir string, rootCA []byte) (err error) {
+	err = prepareCertificate(tmpDir, "CF_SYSTEM_CERT_PATH", "ca.crt", rootCA)
+	if err != nil {
+		return
+	}
+	err = prepareCertificate(tmpDir, "CF_INSTANCE_CERT", "cert.crt", LocalhostCert)
+	if err != nil {
+		return
+	}
+	err = prepareCertificate(tmpDir, "CF_INSTANCE_KEY", "key.key", LocalhostKey)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func prepareCertificate(tmpDir string, envKey string, filename string, certContent []byte) error {
+	file := filepath.Join(tmpDir, filename)
+	err := ioutil.WriteFile(file, certContent, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	return os.Setenv(envKey, file)
+}
+
+func clean(t *testing.T) {
+	err := os.Unsetenv("CF_INSTANCE_CERT")
+	if err != nil {
+		t.Error(err)
+	}
+	err = os.Unsetenv("CF_INSTANCE_KEY")
+	if err != nil {
+		t.Error(err)
+	}
+	err = os.Unsetenv("CF_SYSTEM_CERT_PATH")
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 // taken from https://github.com/golang/go/blob/master/src/net/http/internal/testcert.go
 var LocalhostCert = []byte(`-----BEGIN CERTIFICATE-----
@@ -44,80 +200,3 @@ y2ptGsuSmgUtWj3NM9xuwYPm+Z/F84K6+ARYiZ6PYj013sovGKUFfYAqVXVlxtIX
 qyUBnu3X9ps8ZfjLZO7BAkEAlT4R5Yl6cGhaJQYZHOde3JEMhNRcVFMO8dJDaFeo
 f9Oeos0UUothgiDktdQHxdNEwLjQf7lJJBzV+5OtwswCWA==
 -----END RSA PRIVATE KEY-----`)
-
-func TestAddsMutualAuthToRequest(t *testing.T) {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer ts.Close()
-
-	caCert := ts.TLS.Certificates[0].Certificate[0]
-	if err := setup(caCert); err != nil {
-		t.Error(err)
-	}
-
-	mutualClient, err := mutual.GetMutualClient()
-	if err != nil {
-		t.Error(err)
-	}
-
-	res, err := mutualClient.Get(ts.URL)
-	defer res.Body.Close()
-	if err != nil {
-		t.Error(err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Errorf("Responded with %v", res.StatusCode)
-	}
-
-	clean(t)
-}
-
-func setup(rootCA []byte) error {
-	tmpDir, err := ioutil.TempDir("", "golang-mutual")
-	if err != nil {
-		return err
-	}
-	err = prepareCertificate(tmpDir, "CF_SYSTEM_CERT_PATH", rootCA)
-	if err != nil {
-		return err
-	}
-	err = prepareCertificate(tmpDir, "CF_INSTANCE_CERT", LocalhostCert)
-	if err != nil {
-		return err
-	}
-	err = prepareCertificate(tmpDir, "CF_INSTANCE_KEY", LocalhostKey)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func prepareCertificate(tmpDir string, envKey string, certContent []byte) error {
-	h := md4.New()
-	_, err := io.WriteString(h, string(certContent))
-	if err != nil {
-		return err
-	}
-	file := filepath.Join(tmpDir, string(h.Sum(nil)))
-	err = ioutil.WriteFile(file, certContent, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	return os.Setenv(envKey, file)
-}
-
-func clean(t *testing.T) {
-	err := os.Unsetenv("CF_INSTANCE_CERT")
-	if err != nil {
-		t.Error(err)
-	}
-	err = os.Unsetenv("CF_INSTANCE_KEY")
-	if err != nil {
-		t.Error(err)
-	}
-	err = os.Unsetenv("CF_SYSTEM_CERT_PATH")
-	if err != nil {
-		t.Error(err)
-	}
-}
