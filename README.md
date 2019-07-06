@@ -3,11 +3,15 @@ This library provides a http-Client, which uses the [Cloudfoundry Instance Ident
 
 ## Usage
 Like every other `http.Client`
+
 ```
-mutualClient, err := mutual.GetMutualClient()
+client, err := mutual.GetClient()
 if err != nil {
 	t.Error(err)
 }
 
-res, err := mutualClient.Get(ts.URL)
+res, err := client.Get(ts.URL)
 ```
+
+Please note that certificates are expiring in intervals around an hour.  
+They will not be updated. In this case a new client must be retrieved.
