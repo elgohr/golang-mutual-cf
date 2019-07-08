@@ -15,6 +15,10 @@ const (
 	caLocation   = "CF_SYSTEM_CERT_PATH"
 )
 
+var (
+	cert *tls.Certificate
+)
+
 func GetClient() (client *http.Client, err error) {
 	client = http.DefaultClient
 	config, err := addCertificateConfig()
@@ -38,16 +42,19 @@ func addCertificateConfig() (config *tls.Config, err error) {
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(pcaCert)
+	updateCertificate()
+
 	tlsConfig := &tls.Config{
 		RootCAs:      caCertPool,
 		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			cert, err := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
-			if err != nil {
-				return nil, errors.Wrap(err, "Could not load client certificate")
-			}
-			return &cert, nil
+			return cert, nil
 		},
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
+}
+
+func updateCertificate() {
+	certificate, _ := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
+	cert = &certificate
 }
