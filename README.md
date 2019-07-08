@@ -12,6 +12,3 @@ if err != nil {
 
 res, err := client.Get(ts.URL)
 ```
-
-Please note that certificates are expiring in intervals around an hour.  
-They will not be updated. In this case a new client must be retrieved.

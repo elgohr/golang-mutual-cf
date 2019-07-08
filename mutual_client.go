@@ -28,10 +28,6 @@ func GetClient() (client *http.Client, err error) {
 }
 
 func addCertificateConfig() (config *tls.Config, err error) {
-	cert, err := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not load Key-Pair")
-	}
 	caCert, err := ioutil.ReadFile(os.Getenv(caLocation))
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not load CA-Cert")
@@ -43,8 +39,14 @@ func addCertificateConfig() (config *tls.Config, err error) {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(pcaCert)
 	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
 		RootCAs:      caCertPool,
+		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			cert, err := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
+			if err != nil {
+				return nil, errors.Wrap(err, "Could not load client certificate")
+			}
+			return &cert, nil
+		},
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil

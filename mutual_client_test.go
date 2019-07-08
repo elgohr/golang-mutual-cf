@@ -49,40 +49,6 @@ func TestErrorsWhenAuthorityCouldNotBeFound(t *testing.T) {
 	clean(t)
 }
 
-func TestErrorsWhenKeyCouldNotBeFound(t *testing.T) {
-	ts := setup(t)
-	defer ts.Close()
-
-	err := os.Unsetenv("CF_INSTANCE_KEY")
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = mutual.GetClient()
-	if err == nil || !strings.HasPrefix(err.Error(), "Could not load Key-Pair:") {
-		t.Error(err)
-	}
-
-	clean(t)
-}
-
-func TestErrorsWhenCertificateCouldNotBeFound(t *testing.T) {
-	ts := setup(t)
-	defer ts.Close()
-
-	err := os.Unsetenv("CF_INSTANCE_CERT")
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = mutual.GetClient()
-	if err == nil || !strings.HasPrefix(err.Error(), "Could not load Key-Pair:") {
-		t.Error(err)
-	}
-
-	clean(t)
-}
-
 func TestErrorsWhenAuthorityIsInvalid(t *testing.T) {
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
