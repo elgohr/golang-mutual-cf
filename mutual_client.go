@@ -3,6 +3,7 @@ package mutual
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -10,13 +11,9 @@ import (
 )
 
 const (
-	certLocation = "CF_INSTANCE_CERT"
-	keyLocation  = "CF_INSTANCE_KEY"
-	caLocation   = "CF_SYSTEM_CERT_PATH"
-)
-
-var (
-	cert *tls.Certificate
+	CertLocation = "CF_INSTANCE_CERT"
+	KeyLocation  = "CF_INSTANCE_KEY"
+	CaLocation   = "CF_SYSTEM_CERT_PATH"
 )
 
 func GetClient() (client *http.Client, err error) {
@@ -32,7 +29,62 @@ func GetClient() (client *http.Client, err error) {
 }
 
 func addCertificateConfig() (config *tls.Config, err error) {
-	caCert, err := ioutil.ReadFile(os.Getenv(caLocation))
+	caCertPool, err := getCaCert()
+	if err != nil {
+		return nil, err
+	}
+
+	var cert *tls.Certificate
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return cert, nil
+		},
+	}
+	tlsConfig.BuildNameToCertificate()
+
+	certPath := os.Getenv(CertLocation)
+	keyPath := os.Getenv(KeyLocation)
+
+	watcher, err := watchCertificateUpdates(certPath, keyPath)
+	if err != nil {
+		return tlsConfig, err
+	}
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if ok && event.Op&fsnotify.Write == fsnotify.Write {
+					certificate, _ := tls.LoadX509KeyPair(certPath, keyPath)
+					cert = &certificate
+				}
+			}
+		}
+	}()
+
+	return tlsConfig, nil
+}
+
+func watchCertificateUpdates(certPath string, keyPath string) (watcher *fsnotify.Watcher, err error) {
+	watcher, err = fsnotify.NewWatcher()
+	if err != nil {
+		return
+	}
+
+	err = watcher.Add(certPath)
+	if err != nil {
+		return nil, err
+	}
+	err = watcher.Add(keyPath)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func getCaCert() (caCertPool *x509.CertPool, err error) {
+	caCert, err := ioutil.ReadFile(os.Getenv(CaLocation))
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not load CA-Cert")
 	}
@@ -40,21 +92,7 @@ func addCertificateConfig() (config *tls.Config, err error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "CA-Certificate is invalid")
 	}
-	caCertPool := x509.NewCertPool()
+	caCertPool = x509.NewCertPool()
 	caCertPool.AddCert(pcaCert)
-	updateCertificate()
-
-	tlsConfig := &tls.Config{
-		RootCAs:      caCertPool,
-		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			return cert, nil
-		},
-	}
-	tlsConfig.BuildNameToCertificate()
-	return tlsConfig, nil
-}
-
-func updateCertificate() {
-	certificate, _ := tls.LoadX509KeyPair(os.Getenv(certLocation), os.Getenv(keyLocation))
-	cert = &certificate
+	return caCertPool, nil
 }
