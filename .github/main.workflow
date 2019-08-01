@@ -6,8 +6,8 @@ workflow "Test" {
 action "Go Test" {
   uses = "elgohr/asdf-build-action@master"
   env = {
-    LANGUAGE = "go"
     VERSION = "1.12"
+    ENVIRONMENT = "go"
   }
   args = "go test ./..."
 }
