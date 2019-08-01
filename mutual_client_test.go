@@ -111,7 +111,7 @@ func TestErrorsWhenPrivateKeyCouldNotBeWatched(t *testing.T) {
 		t.Error(err)
 	}
 	client, err := mutual.GetClient()
-	if err == nil || !strings.Contains(err.Error(), "The system cannot find the file specified") {
+	if err == nil || !strings.HasPrefix(err.Error(), "Could not watch") {
 		t.Error(err)
 	}
 	if client == nil {
@@ -130,7 +130,7 @@ func TestErrorsWhenPublicKeyCouldNotBeWatched(t *testing.T) {
 		t.Error(err)
 	}
 	client, err := mutual.GetClient()
-	if err == nil || !strings.Contains(err.Error(), "The system cannot find the file specified") {
+	if err == nil || !strings.HasPrefix(err.Error(), "Could not watch") {
 		t.Error(err)
 	}
 	if client == nil {

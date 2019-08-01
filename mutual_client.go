@@ -74,11 +74,11 @@ func watchCertificateUpdates(certPath string, keyPath string) (watcher *fsnotify
 
 	err = watcher.Add(certPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Could not watch " + certPath)
 	}
 	err = watcher.Add(keyPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Could not watch " + keyPath)
 	}
 	return
 }
