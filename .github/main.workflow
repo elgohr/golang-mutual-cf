@@ -1,13 +1,13 @@
-workflow "New workflow" {
-  on = "push"
+workflow "Test" {
   resolves = ["Go Test"]
+  on = "push"
 }
 
 action "Go Test" {
   uses = "elgohr/asdf-build-action@master"
   env = {
-    LANGUAGE = "golang"
     VERSION = "1.13"
+    LANGUAGE = "go"
   }
   args = "go test ./..."
 }
