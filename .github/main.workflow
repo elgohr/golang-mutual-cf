@@ -7,7 +7,7 @@ action "Go Test" {
   uses = "elgohr/asdf-build-action@master"
   env = {
     VERSION = "1.12"
-    ENVIRONMENT = "go"
+    ENVIRONMENT = "golang"
   }
   args = "go test ./..."
 }
