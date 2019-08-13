@@ -3,5 +3,5 @@ module github.com/elgohr/golang-mutual-cf
 require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/pkg/errors v0.8.1
-	golang.org/x/sys v0.0.0-20190812173652-4e8604ab3aff // indirect
+	golang.org/x/sys v0.0.0-20190813073033-fde4db37ae7a // indirect
 )
