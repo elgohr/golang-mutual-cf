@@ -18,3 +18,5 @@ golang.org/x/sys v0.0.0-20190826165448-acd9dae8e8cc h1:IiVjJ55TGjKcAgNV5kdmjr8Tk
 golang.org/x/sys v0.0.0-20190826165448-acd9dae8e8cc/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20190826195320-c7b8b68b1456 h1:ym+Jqdjku+Y8toGFauYPPxxrIdtskTxB8+k9exV2+XI=
 golang.org/x/sys v0.0.0-20190826195320-c7b8b68b1456/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20190829204830-5fe476d8906b h1:GA/t9fariXOM5cIRJcMPxJHYYZmYHgXdVH0+JEzddZs=
+golang.org/x/sys v0.0.0-20190829204830-5fe476d8906b/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
