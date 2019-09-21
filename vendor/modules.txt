@@ -2,5 +2,5 @@
 github.com/fsnotify/fsnotify
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
-# golang.org/x/sys v0.0.0-20190920190810-ef0ce1748380
+# golang.org/x/sys v0.0.0-20190921190940-14da1ac737cc
 golang.org/x/sys/unix
