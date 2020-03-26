@@ -102,44 +102,6 @@ func TestUpdatesTheGlobalCertificateWhenPrivateKeyChanges(t *testing.T) {
 	clean(t)
 }
 
-func TestErrorsWhenPrivateKeyCouldNotBeWatched(t *testing.T) {
-	ts, tmpDir := setup(t)
-	defer ts.Close()
-
-	join := filepath.Join(tmpDir, KeyFileName)
-	if err := os.Remove(join); err != nil {
-		t.Error(err)
-	}
-	client, err := mutual.GetClient()
-	if err == nil || !strings.HasPrefix(err.Error(), "Could not watch") {
-		t.Error(err)
-	}
-	if client == nil {
-		t.Error("Should return the client regardless of it's updating or not")
-	}
-
-	clean(t)
-}
-
-func TestErrorsWhenPublicKeyCouldNotBeWatched(t *testing.T) {
-	ts, tmpDir := setup(t)
-	defer ts.Close()
-
-	join := filepath.Join(tmpDir, CertFileName)
-	if err := os.Remove(join); err != nil {
-		t.Error(err)
-	}
-	client, err := mutual.GetClient()
-	if err == nil || !strings.HasPrefix(err.Error(), "Could not watch") {
-		t.Error(err)
-	}
-	if client == nil {
-		t.Error("Should return the client regardless of it's updating or not")
-	}
-
-	clean(t)
-}
-
 func TestUpdatesTheGlobalCertificateWhenPublicKeyChanges(t *testing.T) {
 	ts, tmpDir := setup(t)
 	defer ts.Close()

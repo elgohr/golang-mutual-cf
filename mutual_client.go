@@ -3,7 +3,6 @@ package mutual
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -34,53 +33,18 @@ func addCertificateConfig() (config *tls.Config, err error) {
 		return nil, err
 	}
 
-	var cert *tls.Certificate
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			return cert, nil
-		},
-	}
-	tlsConfig.BuildNameToCertificate()
-
 	certPath := os.Getenv(CertLocation)
 	keyPath := os.Getenv(KeyLocation)
 
-	watcher, err := watchCertificateUpdates(certPath, keyPath)
-	if err != nil {
-		return tlsConfig, err
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+		GetClientCertificate: func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
+			return &cert, nil
+		},
 	}
-
-	go func() {
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if ok && event.Op&fsnotify.Write == fsnotify.Write {
-					certificate, _ := tls.LoadX509KeyPair(certPath, keyPath)
-					cert = &certificate
-				}
-			}
-		}
-	}()
 
 	return tlsConfig, nil
-}
-
-func watchCertificateUpdates(certPath string, keyPath string) (watcher *fsnotify.Watcher, err error) {
-	watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		return
-	}
-
-	err = watcher.Add(certPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not watch " + certPath)
-	}
-	err = watcher.Add(keyPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not watch " + keyPath)
-	}
-	return
 }
 
 func getCaCert() (caCertPool *x509.CertPool, err error) {
